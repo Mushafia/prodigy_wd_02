@@ -1,0 +1,62 @@
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
+from sklearn.cluster import KMeans
+from sklearn.preprocessing import StandardScaler
+
+# Load the dataset
+df = pd.read_csv('customer-segmentation/Mall_Customers.csv')
+
+# Display the first few rows of the dataframe
+print(df.head())
+
+# Check for missing values
+print(df.isnull().sum())
+
+# Drop rows with missing values (if any)
+df.dropna(inplace=True)
+
+# Select relevant features for clustering
+features = df[['Age', 'Annual Income (k$)', 'Spending Score (1-100)']]
+
+# Scale the features
+scaler = StandardScaler()
+scaled_features = scaler.fit_transform(features)
+
+# Determine the optimal number of clusters using the Elbow method
+wcss = []  # Within-cluster sum of squares
+for i in range(1, 11):
+    kmeans = KMeans(n_clusters=i, init='k-means++', max_iter=300, n_init=10, random_state=0)
+    kmeans.fit(scaled_features)
+    wcss.append(kmeans.inertia_)
+
+# Plot the Elbow graph
+plt.figure(figsize=(10, 5))
+plt.plot(range(1, 11), wcss)
+plt.title('Elbow Method')
+plt.xlabel('Number of Clusters')
+plt.ylabel('WCSS')
+plt.show()
+
+# Apply K-means clustering with the optimal number of clusters (let's assume it's 5)
+kmeans = KMeans(n_clusters=5, init='k-means++', max_iter=300, n_init=10, random_state=0)
+y_kmeans = kmeans.fit_predict(scaled_features)
+
+# Add the cluster labels to the original dataframe
+df['Cluster'] = y_kmeans
+
+# Visualize the clusters and centroids
+plt.figure(figsize=(10, 5))
+sns.scatterplot(data=df, x='Annual Income (k$)', y='Spending Score (1-100)', hue='Cluster', palette='viridis', s=100, alpha=0.6)
+centroids = kmeans.cluster_centers_
+centroids_unnorm = scaler.inverse_transform(centroids)
+plt.scatter(centroids_unnorm[:, 1], centroids_unnorm[:, 2], s=300, c='red', marker='X')
+plt.title('Customer Segmentation')
+plt.xlabel('Annual Income (k$)')
+plt.ylabel('Spending Score (1-100)')
+plt.legend()
+plt.show()
+
+# Save the dataframe with cluster labels to a CSV file
+df.to_csv('customer_segments.csv', index=False)
